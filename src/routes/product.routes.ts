@@ -1,9 +1,13 @@
-import { FastifyInstance } from "fastify";
+import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import db from "../services/firebase";
 import { listProducts } from "../controllers/list";
 import openAi from "../services/openAi";
 import { training } from "../training/training";
 import { AskVerification } from "../training/askVerification";
+import { AddMessage } from "../utils/addMessage";
+import { createChat } from "../utils/createChat";
+import { AskIsComplex } from "../training/askIsCmplex";
+import { DisactiveAssistend } from "../utils/disactiveAssistend";
 
 export type ListProducts = {
   product_id: number;
@@ -65,55 +69,109 @@ export async function productRoutes(app: FastifyInstance) {
   //     }
   //   });
 
-  app.post("/product/:id", async (request, reply) => {
-    const { id } = request.params as { id: string };
-    const { text } = request.body as {
-      text: string;
-    };
-    try {
-      const product = await db
-        .collection("products")
-        .where("product_id", "==", Number(id))
-        .get();
-      if (product.empty) {
-        return reply.status(404).send({ error: "Product not found" });
-      }
+  app.post(
+    "/product/:id/:sellerId/:userId",
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { id, sellerId, userId } = request.params as {
+        id: string;
+        sellerId: string;
+        userId: string;
+      };
+      const { text } = request.body as {
+        text: string;
+      };
 
-      const askVerificationResponse = await AskVerification({
-        text,
-        product: product.docs[0].data() as ListProducts,
-      });
-
-      console.log(
-        "Verification Response:",
-        askVerificationResponse.choices[0].message?.content
-      );
-      if (askVerificationResponse.choices[0].message?.content === "Não") {
-        return reply.send({
-          response: { content: "A pergunta não está relacionada ao produto." },
+      const chatId = `chat_${userId}_${sellerId}`;
+      try {
+        await createChat({
+          chatId,
+          userId,
+          sellerId,
         });
-      }
-      const response = await openAi.chat.completions.create({
-        model: "gpt-3.5-turbo",
-        messages: [
-          {
-            role: "system",
-            content: training({
-              product: product.docs[0].data() as ListProducts,
-            }),
-          },
-          {
-            role: "user",
-            content: text,
-          },
-        ],
-      });
 
-      return reply.send({
-        response: response.choices[0].message,
-      });
-    } catch (error) {
-      console.log(error);
+        const product = await db
+          .collection("products")
+          .where("product_id", "==", Number(id))
+          .get();
+        if (product.empty) {
+          return reply.status(404).send({ error: "Product not found" });
+        }
+        await AddMessage({
+          chatId,
+          message: text,
+          type: "user",
+          senderId: userId,
+        });
+
+        const askVerificationResponse = await AskVerification({
+          text,
+          product: product.docs[0].data() as ListProducts,
+        });
+
+        if (askVerificationResponse.choices[0].message?.content === "Não") {
+          await AddMessage({
+            chatId,
+            message: "A pergunta não está relacionada ao produto.",
+            type: "assistant",
+            senderId: sellerId,
+          });
+          return reply.send({
+            response: {
+              content: "A pergunta não está relacionada ao produto.",
+            },
+          });
+        }
+        const AskIsComplexResponse = await AskIsComplex({
+          product: product.docs[0].data() as ListProducts,
+          text,
+        });
+        const isComplexData = JSON.parse(
+          AskIsComplexResponse.choices[0].message?.content || "{}"
+        );
+        if (isComplexData.requires_human || isComplexData.is_complex) {
+          await AddMessage({
+            chatId,
+            message:
+              "Vou te passar para um atendente, ele vai saber te explicar direitinho😊",
+            senderId: sellerId,
+            type: "assistant",
+          });
+
+          await DisactiveAssistend(chatId);
+          return reply.send({
+            response: {
+              content:
+                "Vou te passar para um atendente, ele vai saber te explicar direitinho😊",
+            },
+          });
+        }
+        const response = await openAi.chat.completions.create({
+          model: "gpt-3.5-turbo",
+          messages: [
+            {
+              role: "system",
+              content: training({
+                product: product.docs[0].data() as ListProducts,
+              }),
+            },
+            {
+              role: "user",
+              content: text,
+            },
+          ],
+        });
+        await AddMessage({
+          chatId,
+          message: response.choices[0].message?.content || "",
+          type: "assistant",
+          senderId: sellerId,
+        });
+        return reply.send({
+          response: response.choices[0].message,
+        });
+      } catch (error) {
+        console.log(error);
+      }
     }
-  });
+  );
 }

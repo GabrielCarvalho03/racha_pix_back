@@ -1,4 +1,4 @@
-import * as admin from "firebase-admin";
+import admin from "firebase-admin";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -24,14 +24,25 @@ if (raw) {
   }
 }
 
-if (serviceAccount) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
-} else {
-  // fallback: usa credenciais padrão do ambiente (GOOGLE_APPLICATION_CREDENTIALS)
-  admin.initializeApp();
+const databaseURL =
+  process.env.FIREBASE_DATABASE_URL ||
+  "https://finance-350fb-default-rtdb.firebaseio.com";
+
+if (!admin.apps.length) {
+  if (serviceAccount) {
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+      databaseURL,
+    });
+  } else {
+    // fallback: usa credenciais padrão do ambiente (GOOGLE_APPLICATION_CREDENTIALS)
+    admin.initializeApp({
+      credential: admin.credential.applicationDefault(),
+      databaseURL,
+    });
+  }
 }
 
-const db = admin.firestore();
+export const db = admin.firestore();
+export const rtdb = admin.database();
 export default db;

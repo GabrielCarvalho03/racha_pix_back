@@ -1,3 +1,9 @@
 node_modules
 .env
 src/services/firebase-service-account.json
+
+
+# Certificados
+certificates/
+*.p12
+*.pem

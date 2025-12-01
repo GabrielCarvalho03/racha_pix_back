@@ -15,6 +15,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@fastify/jwt": "^10.0.0",
     "@fastify/cors": "^11.1.0",
     "@fastify/formbody": "^8.0.2",
     "@types/uuid": "^9.0.8",
@@ -30,7 +31,6 @@
     "uuid": "9.0.1"
   },
   "devDependencies": {
-    "@fastify/jwt": "^10.0.0",
     "@types/bcrypt": "^6.0.0",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^24.9.2",

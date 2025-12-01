@@ -11,7 +11,7 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "jsx": "react-jsx",
-    "types": ["node", "fastify", "@fastify/jwt"],
+    "types": ["node", "fastify"],
     "typeRoots": ["./node_modules/@types", "./src/@types"]
   },
   "include": ["src/**/*"],

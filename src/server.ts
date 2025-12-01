@@ -1,13 +1,16 @@
+import "dotenv/config";
 import fastify from "fastify";
 import { AuthRoute } from "./routes/user.routes";
 import { PaymentsLinkRoutes } from "./routes/paymentsLink.routes";
 import { PaymentsRoutes } from "./routes/payments.routes";
+
 const app = fastify();
 
 app.register(require("@fastify/jwt"), {
   secret: process.env.JWT_SECRET || "your-secret-key-here",
 });
 app.register(import("@fastify/formbody"));
+
 app.addContentTypeParser(
   "application/json",
   { parseAs: "string" },
@@ -22,14 +25,38 @@ app.addContentTypeParser(
 );
 
 app.register(require("@fastify/cors"), {
-  origin: true, // Permite todas as origens em desenvolvimento
+  origin: true,
   methods: ["GET", "PUT", "POST", "DELETE"],
   credentials: true,
 });
+
 app.register(AuthRoute);
 app.register(PaymentsRoutes);
 app.register(PaymentsLinkRoutes);
 
-app.listen({ port: 3000 }).then(() => {
-  console.log(`Server running at http://localhost:3000`);
+// Health check
+app.get("/health", async (request, reply) => {
+  return {
+    message: "API Racha Pix funcionando!",
+    timestamp: new Date().toISOString(),
+    env: process.env.NODE_ENV,
+  };
 });
+
+// Para desenvolvimento local
+if (process.env.NODE_ENV !== "production") {
+  const start = async () => {
+    try {
+      const PORT = Number(process.env.PORT) || 3000;
+      await app.listen({ port: PORT, host: "0.0.0.0" });
+      console.log(`🚀 Server running at http://localhost:${PORT}`);
+    } catch (err) {
+      console.error("❌ Error starting server:", err);
+      process.exit(1);
+    }
+  };
+  start();
+}
+
+// Export para Vercel
+export default app;

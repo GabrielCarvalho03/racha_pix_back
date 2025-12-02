@@ -8,11 +8,12 @@ export const createPaymentsLink = async (
   request: FastifyRequest,
   reply: FastifyReply
 ) => {
-  const { title, value, date, storeId } = request.body as {
+  const { title, value, date, storeId, paymentId } = request.body as {
     title: string;
     value: number;
     date: string;
     storeId: string;
+    paymentId: string;
   };
 
   console.log("storeId:", value);
@@ -29,7 +30,7 @@ export const createPaymentsLink = async (
     }
 
     const savePaymente = await db.collection("paymentsLinks").add({
-      id: uuidv4(),
+      id: paymentId,
       storeId,
       title,
       value,

@@ -1,0 +1,28 @@
+import { FastifyReply, FastifyRequest } from "fastify";
+import db from "../../services/firebase";
+
+export const getSlug = async (request: FastifyRequest, reply: FastifyReply) => {
+  const { slug } = request.params as { slug: string };
+
+  try {
+    const slugExists = await db
+      .collection("slugs")
+      .where("slug", "==", slug)
+      .get();
+
+    const slugData = slugExists.docs[0]?.data();
+
+    if (slugExists.empty) {
+      return reply.status(404).send({ error: "link não encontrado" });
+    }
+
+    return reply
+      .status(201)
+      .send({ message: "link encontrado", data: slugData });
+  } catch (error) {
+    console.error("Error creating slug:", error);
+    return reply
+      .status(500)
+      .send({ error: "Erro interno no servidor, tente novamente mais tarde." });
+  }
+};

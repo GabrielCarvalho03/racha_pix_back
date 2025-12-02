@@ -3,11 +3,10 @@ import fastify from "fastify";
 import { AuthRoute } from "./routes/user.routes";
 import { PaymentsRoutes } from "./routes/payments.routes";
 import { PaymentsLinkRoutes } from "./routes/paymentsLink.routes";
+import { SlugRoutes } from "./routes/slug.routes";
 
 // Cria a instância
-const app = fastify({
-  logger: process.env.NODE_ENV === "development",
-});
+const app = fastify();
 
 // Plugins
 app.register(require("@fastify/jwt"), {
@@ -46,6 +45,7 @@ app.get("/", () => ({
 app.register(AuthRoute);
 app.register(PaymentsRoutes);
 app.register(PaymentsLinkRoutes);
+app.register(SlugRoutes);
 
 // -----------------------
 // LOCAL ONLY

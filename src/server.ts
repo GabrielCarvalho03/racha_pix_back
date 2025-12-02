@@ -1,18 +1,16 @@
 import "dotenv/config";
 import fastify from "fastify";
 import { AuthRoute } from "./routes/user.routes";
-import { PaymentsLinkRoutes } from "./routes/paymentsLink.routes";
 import { PaymentsRoutes } from "./routes/payments.routes";
-
-console.log("🚀 Iniciando aplicação Fastify...");
+import { PaymentsLinkRoutes } from "./routes/paymentsLink.routes";
 
 const app = fastify({
   logger: process.env.NODE_ENV === "development",
 });
 
-// Registrar plugins (forma mais rápida)
+// Plugins
 app.register(require("@fastify/jwt"), {
-  secret: process.env.JWT_SECRET || "your-secret-key-here",
+  secret: process.env.JWT_SECRET || "your-secret",
 });
 
 app.register(import("@fastify/formbody"));
@@ -36,36 +34,17 @@ app.register(require("@fastify/cors"), {
   credentials: true,
 });
 
-// Health check ANTES das rotas pesadas
-app.get("/", async (request, reply) => {
-  return {
-    message: "API Racha Pix funcionando!",
-    timestamp: new Date().toISOString(),
-    env: process.env.NODE_ENV,
-  };
-});
+// Health check
+app.get("/", () => ({
+  message: "API Racha Pix funcionando!",
+  env: process.env.NODE_ENV,
+  timestamp: new Date().toISOString(),
+}));
 
-// Rotas (registrar por último)
+// Rotas
 app.register(AuthRoute);
 app.register(PaymentsRoutes);
 app.register(PaymentsLinkRoutes);
 
-console.log("✅ Aplicação configurada");
-
-// Para desenvolvimento local
-if (process.env.NODE_ENV !== "production") {
-  const start = async () => {
-    try {
-      const PORT = Number(process.env.PORT) || 3000;
-      await app.listen({ port: PORT, host: "0.0.0.0" });
-      console.log(`🚀 Server running at http://localhost:${PORT}`);
-    } catch (err) {
-      console.error("❌ Error starting server:", err);
-      process.exit(1);
-    }
-  };
-  start();
-}
-
-// Export para Vercel
+// EXPORTA APENAS O APP (sem listen)
 export default app;

@@ -72,12 +72,6 @@ app.get("/", async (request, reply) => {
         env: process.env.NODE_ENV,
     };
 });
-app.get("/health", async (request, reply) => {
-    return {
-        status: "ok",
-        timestamp: new Date().toISOString(),
-    };
-});
 // Rotas (registrar por último)
 app.register(user_routes_1.AuthRoute);
 app.register(payments_routes_1.PaymentsRoutes);

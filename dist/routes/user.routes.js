@@ -7,9 +7,6 @@ const auth_validate_1 = require("../controllers/users/auth-validate");
 const getUserById_1 = require("../controllers/users/getUserById");
 const update_user_1 = require("../controllers/users/update-user");
 async function AuthRoute(app) {
-    app.get("/", async () => {
-        return { message: "Server is running" };
-    });
     app.get("/user/:id", getUserById_1.getUserById);
     app.put("/user/edit/:userId", update_user_1.updateUser);
     app.post("/register", createUser_1.createUser);

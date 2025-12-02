@@ -41,7 +41,11 @@ const fastify_1 = __importDefault(require("fastify"));
 const user_routes_1 = require("./routes/user.routes");
 const paymentsLink_routes_1 = require("./routes/paymentsLink.routes");
 const payments_routes_1 = require("./routes/payments.routes");
-const app = (0, fastify_1.default)();
+console.log("🚀 Iniciando aplicação Fastify...");
+const app = (0, fastify_1.default)({
+    logger: process.env.NODE_ENV === "development",
+});
+// Registrar plugins (forma mais rápida)
 app.register(require("@fastify/jwt"), {
     secret: process.env.JWT_SECRET || "your-secret-key-here",
 });
@@ -60,17 +64,25 @@ app.register(require("@fastify/cors"), {
     methods: ["GET", "PUT", "POST", "DELETE"],
     credentials: true,
 });
-app.register(user_routes_1.AuthRoute);
-app.register(payments_routes_1.PaymentsRoutes);
-app.register(paymentsLink_routes_1.PaymentsLinkRoutes);
-// Health check
-app.get("/health", async (request, reply) => {
+// Health check ANTES das rotas pesadas
+app.get("/", async (request, reply) => {
     return {
         message: "API Racha Pix funcionando!",
         timestamp: new Date().toISOString(),
         env: process.env.NODE_ENV,
     };
 });
+app.get("/health", async (request, reply) => {
+    return {
+        status: "ok",
+        timestamp: new Date().toISOString(),
+    };
+});
+// Rotas (registrar por último)
+app.register(user_routes_1.AuthRoute);
+app.register(payments_routes_1.PaymentsRoutes);
+app.register(paymentsLink_routes_1.PaymentsLinkRoutes);
+console.log("✅ Aplicação configurada");
 // Para desenvolvimento local
 if (process.env.NODE_ENV !== "production") {
     const start = async () => {

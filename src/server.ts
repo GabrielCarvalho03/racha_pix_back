@@ -45,13 +45,6 @@ app.get("/", async (request, reply) => {
   };
 });
 
-app.get("/health", async (request, reply) => {
-  return {
-    status: "ok",
-    timestamp: new Date().toISOString(),
-  };
-});
-
 // Rotas (registrar por último)
 app.register(AuthRoute);
 app.register(PaymentsRoutes);

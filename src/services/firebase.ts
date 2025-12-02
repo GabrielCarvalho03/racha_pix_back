@@ -1,48 +1,57 @@
 import admin from "firebase-admin";
-import dotenv from "dotenv";
-dotenv.config();
 
-// FIREBASE_SERVICE_ACCOUNT_JSON pode ser:
-// - JSON bruto (começa com '{')
-// - ou Base64 do JSON
-const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-let serviceAccount: any | undefined;
+let isInitialized = false;
 
-if (raw) {
-  try {
-    const trimmed = raw.trim();
-    if (trimmed.startsWith("{")) {
-      serviceAccount = JSON.parse(trimmed);
-    } else {
-      // decodifica base64
-      const decoded = Buffer.from(trimmed, "base64").toString("utf-8");
-      serviceAccount = JSON.parse(decoded);
+function initializeFirebase() {
+  if (isInitialized || admin.apps.length > 0) return;
+
+  console.log("🔥 Inicializando Firebase...");
+
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  let serviceAccount: any | undefined;
+
+  if (raw) {
+    try {
+      const trimmed = raw.trim();
+      serviceAccount = trimmed.startsWith("{")
+        ? JSON.parse(trimmed)
+        : JSON.parse(Buffer.from(trimmed, "base64").toString("utf-8"));
+    } catch (err) {
+      console.error("Erro ao parsear FIREBASE_SERVICE_ACCOUNT_JSON:", err);
     }
-  } catch (err) {
-    console.error("Erro ao parsear FIREBASE_SERVICE_ACCOUNT_JSON:", err);
-    serviceAccount = undefined;
   }
-}
 
-const databaseURL =
-  process.env.FIREBASE_DATABASE_URL ||
-  "https://finance-350fb-default-rtdb.firebaseio.com";
+  const databaseURL =
+    process.env.FIREBASE_DATABASE_URL ||
+    "https://finance-350fb-default-rtdb.firebaseio.com";
 
-if (!admin.apps.length) {
   if (serviceAccount) {
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
       databaseURL,
     });
   } else {
-    // fallback: usa credenciais padrão do ambiente (GOOGLE_APPLICATION_CREDENTIALS)
     admin.initializeApp({
       credential: admin.credential.applicationDefault(),
       databaseURL,
     });
   }
+
+  isInitialized = true;
+  console.log("✅ Firebase inicializado");
 }
 
-export const db = admin.firestore();
-export const rtdb = admin.database();
-export default db;
+export function getFirestore() {
+  initializeFirebase();
+  return admin.firestore();
+}
+
+export function getDatabase() {
+  initializeFirebase();
+  return admin.database();
+}
+
+// Exports para compatibilidade
+export const db = { get: getFirestore };
+export const rtdb = { get: getDatabase };
+export default { get: getFirestore };

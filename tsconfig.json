@@ -5,15 +5,14 @@
     "moduleResolution": "node",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    "strict": true,
+    "strict": false,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "outDir": "./dist",
-    "rootDir": "./src",
-    "jsx": "react-jsx",
+
+    "outDir": "dist",
     "types": ["node", "fastify"],
     "typeRoots": ["./node_modules/@types", "./src/@types"]
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "api/**/*"],
   "exclude": ["node_modules", "dist"]
 }

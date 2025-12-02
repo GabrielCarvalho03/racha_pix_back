@@ -4,6 +4,7 @@ import { AuthRoute } from "./routes/user.routes";
 import { PaymentsRoutes } from "./routes/payments.routes";
 import { PaymentsLinkRoutes } from "./routes/paymentsLink.routes";
 
+// Cria a instância
 const app = fastify({
   logger: process.env.NODE_ENV === "development",
 });
@@ -46,5 +47,25 @@ app.register(AuthRoute);
 app.register(PaymentsRoutes);
 app.register(PaymentsLinkRoutes);
 
-// EXPORTA APENAS O APP (sem listen)
+// -----------------------
+// LOCAL ONLY
+// -----------------------
+if (process.env.NODE_ENV !== "production") {
+  const start = async () => {
+    try {
+      const PORT = Number(process.env.PORT) || 3000;
+      await app.listen({ port: PORT, host: "0.0.0.0" });
+      console.log(`🚀 Server running at http://localhost:${PORT}`);
+    } catch (err) {
+      console.error("❌ Error starting server:", err);
+      process.exit(1);
+    }
+  };
+
+  start();
+}
+
+// -----------------------
+// VERCEL EXPORT
+// -----------------------
 export default app;

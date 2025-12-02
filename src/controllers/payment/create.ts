@@ -1,7 +1,7 @@
 import axios from "axios";
 import { FastifyReply, FastifyRequest } from "fastify";
 import db, { rtdb } from "../../services/firebase";
-import { efiopay } from "../../services/efíclient";
+// import { efiopay } from "../../services/efíclient";
 
 export const createPaymentController = async (
   request: FastifyRequest,
@@ -83,41 +83,46 @@ export const createPaymentController = async (
         },
       ],
     };
-    const pixResponse = await efiopay.pixCreateImmediateCharge([], pixBody);
+    // const pixResponse = await efiopay.pixCreateImmediateCharge([], pixBody);
 
     // Gerar QR Code
     let qrCodeData = null;
-    if (pixResponse.loc && pixResponse.loc.id) {
-      const qrCodeResponse = await efiopay.pixGenerateQRCode({
-        id: pixResponse.loc.id,
-      });
-      qrCodeData = qrCodeResponse;
-    }
+    // if (pixResponse.loc && pixResponse.loc.id) {
+    //   const qrCodeResponse = await efiopay.pixGenerateQRCode({
+    //     id: pixResponse.loc.id,
+    //   });
+    //   qrCodeData = qrCodeResponse;
+    // }
 
-    await rtdb.ref(`/payments/${trackingId}`).set({
-      txid: pixResponse.txid,
-      paymentLinkId: existPaymentLink.docs[0].data().id ?? "",
-      status: pixResponse.status,
-      value: value,
-      customerName: name,
-      customerCpf: cpfCnpj,
-      sellerId: userId,
-      sellerPixKey: infoUser.docs[0].data().pixKey ?? "",
-      description: "Pagamento PIX",
-      createdAt: new Date().toISOString(),
-      expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(), // 15 min
-    });
+    // await rtdb.ref(`/payments/${trackingId}`).set({
+    //   txid: pixResponse.txid,
+    //   paymentLinkId: existPaymentLink.docs[0].data().id ?? "",
+    //   status: pixResponse.status,
+    //   value: value,
+    //   customerName: name,
+    //   customerCpf: cpfCnpj,
+    //   sellerId: userId,
+    //   sellerPixKey: infoUser.docs[0].data().pixKey ?? "",
+    //   description: "Pagamento PIX",
+    //   createdAt: new Date().toISOString(),
+    //   expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(), // 15 min
+    // });
+
+    // return reply.status(201).send({
+    //   message: "Pagamento Pix criado com sucesso",
+    //   trackingId: trackingId,
+    //   txid: pixResponse.txid,
+    //   pixData: {
+    //     qrcode: qrCodeData?.qrcode,
+    //     imagemQrcode: qrCodeData?.imagemQrcode,
+    //     valor: value.toFixed(2),
+    //     status: pixResponse.status,
+    //   },
+    // });
 
     return reply.status(201).send({
       message: "Pagamento Pix criado com sucesso",
       trackingId: trackingId,
-      txid: pixResponse.txid,
-      pixData: {
-        qrcode: qrCodeData?.qrcode,
-        imagemQrcode: qrCodeData?.imagemQrcode,
-        valor: value.toFixed(2),
-        status: pixResponse.status,
-      },
     });
   } catch (err) {
     console.error(err);

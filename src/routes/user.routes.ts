@@ -6,9 +6,6 @@ import { getUserById } from "../controllers/users/getUserById";
 import { updateUser } from "../controllers/users/update-user";
 
 export async function AuthRoute(app: FastifyInstance) {
-  app.get("/", async () => {
-    return { message: "Server is running" };
-  });
   app.get("/user/:id", getUserById);
   app.put("/user/edit/:userId", updateUser);
   app.post("/register", createUser);

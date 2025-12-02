@@ -1,7 +1,7 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { findPaymentByAsaasId } from "../utils/findPaymentByAssasId";
 import { updatePaymentStatus } from "../utils/updatepaymentStatus";
-// import { efiopay } from "../../../services/efíclient";
+import { efiopay } from "../../../services/efíclient";
 import db from "../../../services/firebase";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -120,21 +120,21 @@ export const EfiWebhook = async (
 
     console.log("💰 Valor para o cliente:", valueForClient);
 
-    // await efiopay.pixSend(
-    //   {
-    //     idEnvio: idEnvio,
-    //   },
-    //   {
-    //     valor: `${valueForClient}`,
-    //     pagador: {
-    //       chave: "5d2d7d7d-ec6c-4ceb-b58c-6341e1204937",
-    //       infoPagador: "Confirmação de recebimento",
-    //     },
-    //     favorecido: {
-    //       chave: sellerData.docs[0].data().pixKey,
-    //     },
-    //   }
-    // );
+    await efiopay.pixSend(
+      {
+        idEnvio: idEnvio,
+      },
+      {
+        valor: `${valueForClient}`,
+        pagador: {
+          chave: "5d2d7d7d-ec6c-4ceb-b58c-6341e1204937",
+          infoPagador: "Confirmação de recebimento",
+        },
+        favorecido: {
+          chave: sellerData.docs[0].data().pixKey,
+        },
+      }
+    );
 
     return reply.status(200).send({ message: "Webhook received successfully" });
   } catch (err) {

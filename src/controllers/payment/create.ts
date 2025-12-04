@@ -19,6 +19,17 @@ export const createPaymentController = async (
     .toString(36)
     .substr(2, 9)}`;
 
+  const min_tax = 2.5;
+  const tax_porcent = 0.03; // 3%
+
+  const value_porcent = value * tax_porcent;
+  const recibmentValue = Number(value);
+
+  const sistemComition =
+    recibmentValue > 83.33
+      ? recibmentValue * tax_porcent // 3% do valor
+      : min_tax; // R$ 2,50 fixo
+
   try {
     if (!name || !cpfCnpj || !value || !userId || !paymentLinkId) {
       const missingFields = [];
@@ -68,7 +79,7 @@ export const createPaymentController = async (
         expiracao: 900, // 15 minutos (900 segundos)
       },
       valor: {
-        original: value.toFixed(2),
+        original: (value + sistemComition).toFixed(2),
       },
       chave: "5d2d7d7d-ec6c-4ceb-b58c-6341e1204937",
       solicitacaoPagador: "Pagamento PIX",

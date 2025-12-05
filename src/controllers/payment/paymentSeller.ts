@@ -38,6 +38,12 @@ export const paymentSeller = async (
         },
       }
     );
+    const updateUser = await db
+      .collection("users")
+      .doc(user.docs[0].id)
+      .update({
+        current_amount: 0,
+      });
   } catch (error) {
     console.error("Error in createPaymentController:", error);
     reply.status(500).send({

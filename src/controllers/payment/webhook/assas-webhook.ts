@@ -87,6 +87,15 @@ export const EfiWebhook = async (
       .get();
 
     await db
+      .collection("users")
+      .doc(sellerData.docs[0].id)
+      .update({
+        current_amount:
+          Number(sellerData.docs[0].data().current_amount || 0) +
+          Number(valueForClient),
+      });
+
+    await db
       .collection("paymentsLinks")
       .doc(paymentsSnapshotFirestore.docs[0].id)
       .update({

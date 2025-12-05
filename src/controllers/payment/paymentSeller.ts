@@ -11,10 +11,7 @@ export const paymentSeller = async (
     amount: number;
   };
   try {
-    const user = await db
-      .collection("users")
-      .where("sellerID", "==", sellerID)
-      .get();
+    const user = await db.collection("users").where("id", "==", sellerID).get();
     if (user.empty) {
       return reply.status(404).send({ error: "usuário não encontrado." });
     }

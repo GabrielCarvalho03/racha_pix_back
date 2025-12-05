@@ -28,7 +28,7 @@ export const paymentSeller = async (
         idEnvio: idEnvio,
       },
       {
-        valor: `${amount}`,
+        valor: `${amount.toFixed(2)}`,
         pagador: {
           chave: "5d2d7d7d-ec6c-4ceb-b58c-6341e1204937",
           infoPagador: "Confirmação de recebimento",

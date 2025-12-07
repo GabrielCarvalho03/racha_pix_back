@@ -30,21 +30,6 @@ export const EfiWebhook = async (
     const paymentEvent: any = request.body;
     const pixInfo = paymentEvent.pix[0];
 
-    const min_tax = 2.5;
-    const tax_porcent = 0.03; // 3%
-
-    console.log("Pagamento Recebido:", pixInfo);
-
-    const value_porcent = pixInfo.valor * tax_porcent;
-    const recibmentValue = Number(pixInfo.valor);
-
-    const sistemComition =
-      recibmentValue > 83.33
-        ? recibmentValue * tax_porcent // 3% do valor
-        : min_tax; // R$ 2,50 fixo
-
-    const valueForClient = (recibmentValue - sistemComition).toFixed(2);
-
     if (!pixInfo.txid) {
       console.log("❌ TXID não encontrado no webhook");
       return reply.status(400).send({ error: "TXID not found" });
@@ -92,7 +77,7 @@ export const EfiWebhook = async (
       .update({
         current_amount:
           Number(sellerData.docs[0].data().current_amount || 0) +
-          Number(valueForClient),
+          Number(pixInfo.valor),
       });
 
     await db
@@ -102,7 +87,7 @@ export const EfiWebhook = async (
         ...paymentsSnapshotFirestore.docs[0].data(),
         current_amount:
           Number(paymentsSnapshotFirestore.docs[0].data().current_amount || 0) +
-          recibmentValue,
+          Number(pixInfo.valor),
         paymentsConfirmed: [
           ...(paymentsSnapshotFirestore.docs[0].data().paymentsConfirmed || []),
           {

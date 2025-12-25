@@ -90,25 +90,46 @@ export const EfiWebhook = async (
     const EFI_PERCENT = 0.0119; // 1.19%
     const CUSTOS_FIXOS = 1.5; // R$ 1,00 seu lucro + R$ 0,50 custo do saque
 
-    // 2. Cálculo do que vai para o SALDO do Dono (current_amount do user)
+    // 2. Garantir que os valores do banco sejam números (evita o NaN)
+    const valorPagoAgora = Number(pixInfo.valor || 0);
+    const valorOriginalDono = Number(paymentLinkData.value || 0);
+    const valorObjetivoLink = Number(
+      paymentLinkData.targetValue || valorOriginalDono
+    );
+
+    // 3. CÁLCULO PROPORCIONAL DO SALDO DO DONO
+    // Se o dono quer 200 (original) e o racha é 203.92 (target),
+    // a proporção dele é 200 / 203.92 = ~0.98.
+    // Cada real que entra, ele ganha 98 centavos.
+
     const amountForSeller =
       paymentLinkData.taxModel === "absorve"
-        ? Number(pixInfo.valor) -
-          Number(pixInfo.valor) * EFI_PERCENT -
-          CUSTOS_FIXOS
-        : Number(paymentLinkData.value); // No 'passed_forward', o dono recebe o valor original da quadra
+        ? valorPagoAgora *
+          ((valorOriginalDono -
+            valorOriginalDono * EFI_PERCENT -
+            CUSTOS_FIXOS) /
+            valorOriginalDono)
+        : valorPagoAgora * (valorOriginalDono / valorObjetivoLink);
 
-    const newSellerAmount =
-      Number(sellerData.docs[0].data().current_amount || 0) + amountForSeller;
+    // 4. Verificação de segurança para nunca salvar NaN no banco
+    const finalAmountForSeller = isNaN(amountForSeller) ? 0 : amountForSeller;
+
+    // 5. Atualização do saldo no Firebase
+    const currentAmountInDb = Number(
+      sellerData.docs[0].data().current_amount || 0
+    );
+    const newSellerAmount = currentAmountInDb + finalAmountForSeller;
 
     await db
       .collection("users")
       .doc(sellerData.docs[0].id)
       .update({
-        current_amount:
-          Number(sellerData.docs[0].data().current_amount || 0) +
-          amountForSeller,
+        current_amount: Number(newSellerAmount.toFixed(2)), // Garante 2 casas decimais e tipo Number
       });
+
+    console.log(
+      `💰 Saldo do Dono atualizado: +R$ ${finalAmountForSeller.toFixed(2)}`
+    );
 
     await db
       .collection("paymentsLinks")

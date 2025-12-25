@@ -62,7 +62,7 @@ export const createPaymentsLink = async (
       date: date ?? "",
       current_amount: 0, // Quanto já foi pago até agora
       is_closed: false,
-      createdAt: new Date().toISOString(),
+      createdAt: new Date(),
       paymentsConfirmed: [],
     });
 

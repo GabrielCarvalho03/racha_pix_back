@@ -8,8 +8,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc",
     "start": "node dist/server.js",
-    "vercel-build": "echo 'No build step required'",
-    "preinstall": "node preinstall.js"
+    "vercel-build": "echo 'No build step required'"
   },
   "keywords": [],
   "author": "",

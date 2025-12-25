@@ -86,50 +86,50 @@ export const EfiWebhook = async (
       .where("id", "==", paymentByIdData?.paymentLinkId)
       .get();
 
-    // 2. LÓGICA DE PRECIFICAÇÃO DO LINK (Cálculo do Objetivo)
+    // 1. Constantes de taxas (Devem ser iguais às da criação do link)
     const EFI_PERCENT = 0.0119; // 1.19%
-    const CUSTOS_FIXOS = 1.5; // R$ 1,00 seu lucro + R$ 0,50 custo do saque
+    const CUSTOS_FIXOS = 1.5; // R$ 1,00 seu lucro + R$ 0,50 saque
 
-    // 2. Garantir que os valores do banco sejam números (evita o NaN)
-    const valorPagoAgora = Number(pixInfo.valor || 0);
-    const valorOriginalDono = Number(paymentLinkData.value || 0);
-    const valorObjetivoLink = Number(
-      paymentLinkData.targetValue || valorOriginalDono
-    );
+    // 2. Extração segura dos dados (Conforme a imagem enviada)
+    const valorPagoAgora = Number(pixInfo.valor || 0); // O que o jogador pagou agora
+    const valorOriginalDono = Number(paymentLinkData.originalValue || 0); // Campo 'originalValue' da imagem
+    const valorMetaLink = Number(paymentLinkData.targetValue || 0); // Campo 'targetValue' da imagem
+    const taxModel = paymentLinkData.taxModel; // Pode ser 'passed_value' ou 'absorve'
 
-    // 3. CÁLCULO PROPORCIONAL DO SALDO DO DONO
-    // Se o dono quer 200 (original) e o racha é 203.92 (target),
-    // a proporção dele é 200 / 203.92 = ~0.98.
-    // Cada real que entra, ele ganha 98 centavos.
+    let amountForSeller = 0;
 
-    const amountForSeller =
-      paymentLinkData.taxModel === "absorve"
-        ? valorPagoAgora *
-          ((valorOriginalDono -
-            valorOriginalDono * EFI_PERCENT -
-            CUSTOS_FIXOS) /
-            valorOriginalDono)
-        : valorPagoAgora * (valorOriginalDono / valorObjetivoLink);
+    // 3. Lógica de cálculo proporcional
+    if (taxModel === "absorve") {
+      /** * Se o dono absorve, o racha total é R$ 200.
+       * Precisamos tirar a porcentagem do banco e a parte fixa proporcionalmente.
+       */
+      const proporcaoLimpa =
+        (valorOriginalDono - valorOriginalDono * EFI_PERCENT - CUSTOS_FIXOS) /
+        valorOriginalDono;
+      amountForSeller = valorPagoAgora * proporcaoLimpa;
+    } else {
+      /** * Se é 'passed_value', o racha total é R$ 203.93.
+       * O dono só deve receber a parte proporcional aos R$ 200.
+       */
+      const proporcaoDono = valorOriginalDono / valorMetaLink;
+      amountForSeller = valorPagoAgora * proporcaoDono;
+    }
 
-    // 4. Verificação de segurança para nunca salvar NaN no banco
-    const finalAmountForSeller = isNaN(amountForSeller) ? 0 : amountForSeller;
+    // 4. Verificação final anti-NaN e atualização
+    const finalAmount = isNaN(amountForSeller)
+      ? 0
+      : Number(amountForSeller.toFixed(2));
 
-    // 5. Atualização do saldo no Firebase
-    const currentAmountInDb = Number(
+    const currentSellerAmount = Number(
       sellerData.docs[0].data().current_amount || 0
     );
-    const newSellerAmount = currentAmountInDb + finalAmountForSeller;
+    const newSellerAmount = currentSellerAmount + finalAmount;
 
-    await db
-      .collection("users")
-      .doc(sellerData.docs[0].id)
-      .update({
-        current_amount: Number(newSellerAmount.toFixed(2)), // Garante 2 casas decimais e tipo Number
-      });
+    await db.collection("users").doc(sellerData.docs[0].id).update({
+      current_amount: newSellerAmount,
+    });
 
-    console.log(
-      `💰 Saldo do Dono atualizado: +R$ ${finalAmountForSeller.toFixed(2)}`
-    );
+    console.log(`✅ Saldo atualizado para ${taxModel}: +R$ ${finalAmount}`);
 
     await db
       .collection("paymentsLinks")

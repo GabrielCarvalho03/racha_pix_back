@@ -6,10 +6,14 @@ export const updateUser = async (
   reply: FastifyReply
 ) => {
   const { userId } = request.params as { userId: string };
-  const { name, pixKey } = request.body as { name?: string; pixKey?: string };
+  const { name, pixKey, taxModel } = request.body as {
+    name?: string;
+    pixKey?: string;
+    taxModel?: "absorve" | "passed_value";
+  };
 
   try {
-    if (!name && !pixKey) {
+    if (!name && !pixKey && !taxModel) {
       return reply
         .status(400)
         .send({ message: "Nenhum dado fornecido para atualização." });
@@ -31,9 +35,14 @@ export const updateUser = async (
     }
     const userDoc = userInDb.docs[0];
 
-    const updatedData: { name?: string; pixKey?: string } = {};
+    const updatedData: {
+      name?: string;
+      pixKey?: string;
+      taxModel?: "absorve" | "passed_value";
+    } = {};
     if (name) updatedData.name = name;
     if (pixKey) updatedData.pixKey = pixKey;
+    if (taxModel) updatedData.taxModel = taxModel;
     await db.collection("users").doc(userDoc.id).update(updatedData);
     return reply
       .status(200)

@@ -102,7 +102,7 @@ export const EfiWebhook = async (
       Number(sellerData.docs[0].data().current_amount || 0) + amountForSeller;
 
     await db.collection("users").doc(sellerData.docs[0].id).update({
-      current_amount: newSellerAmount,
+      current_amount: = Number(sellerData.docs[0].data().current_amount || 0) + amountForSeller,
     });
 
     await db

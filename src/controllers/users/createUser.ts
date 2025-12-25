@@ -41,6 +41,7 @@ export const createUser = async (
       phone: phone ?? "",
       email,
       password: hashedPassword,
+      taxModel: "absorve",
     });
 
     const userData = {

@@ -1,25 +1,17 @@
 import { FastifyReply, FastifyRequest } from "fastify";
-import { findPaymentByAsaasId } from "../utils/findPaymentByAssasId";
-import { updatePaymentStatus } from "../utils/updatepaymentStatus";
-import { efiopay } from "../../../services/efíclient";
 import db from "../../../services/firebase";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 
 export interface PaymentTracking {
   trackingId: string;
   customerId: string;
   paymentId: string;
-  value: number;
+  value: number; // Valor total que o jogador pagou
+  netValue: number; // Valor líquido que pertence ao dono (calculado no Controller)
   customerName: string;
   customerCpf: string;
   status: string;
-  createdAt: number;
-  expiresAt: number;
-  lastUpdated?: number;
   paymentLinkId: string;
   sellerId: string;
-  sellerPixKey: string;
 }
 
 export const EfiWebhook = async (
@@ -28,88 +20,94 @@ export const EfiWebhook = async (
 ) => {
   try {
     const paymentEvent: any = request.body;
-    const pixInfo = paymentEvent.pix[0];
 
-    if (!pixInfo.txid) {
-      console.log("❌ TXID não encontrado no webhook");
-      return reply.status(400).send({ error: "TXID not found" });
+    // A Efí pode enviar um array de Pix, pegamos o primeiro
+    const pixInfo = paymentEvent.pix?.[0];
+
+    if (!pixInfo || !pixInfo.txid) {
+      return reply.status(200).send(); // Retornamos 200 para a Efí não reenviar
     }
 
-    const paymentByIdData: PaymentTracking | null = await findPaymentByAsaasId(
-      pixInfo.txid
+    // 1. Busca os dados do pagamento que salvamos na criação (Tracking)
+    // Precisamos buscar pelo TXID no Firestore ou Realtime Database
+    const paymentSnapshot = await db
+      .collection("payments_tracking") // Ou o nome da sua collection de tracking
+      .where("txid", "==", pixInfo.txid)
+      .get();
+
+    if (paymentSnapshot.empty) {
+      console.log("❌ Pagamento não encontrado para o TXID:", pixInfo.txid);
+      return reply.status(200).send();
+    }
+
+    const paymentData = paymentSnapshot.docs[0].data() as PaymentTracking;
+
+    // 2. Busca o Link de Pagamento e o Vendedor
+    const linkRef = db
+      .collection("paymentsLinks")
+      .doc(paymentData.paymentLinkId);
+    const sellerRef = db.collection("users").doc(paymentData.sellerId);
+
+    const [linkDoc, sellerDoc] = await Promise.all([
+      linkRef.get(),
+      sellerRef.get(),
+    ]);
+
+    if (!linkDoc.exists || !sellerDoc.exists) {
+      console.log("❌ Link ou Vendedor não encontrado.");
+      return reply.status(200).send();
+    }
+
+    const currentLinkData = linkDoc.data();
+    const currentSellerData = sellerDoc.data();
+
+    // 3. ATUALIZAÇÃO DE SALDOS
+    // O valor que entra para o dono é o NET_VALUE (valor sem taxas)
+    const newSellerAmount =
+      Number(currentSellerData?.current_amount || 0) +
+      Number(paymentData.netValue);
+
+    // O valor que entra no link é o valor TOTAL que o jogador pagou (para bater a meta)
+    const newLinkAmount =
+      Number(currentLinkData?.current_amount || 0) + Number(pixInfo.valor);
+
+    // 4. Executa as atualizações no Firestore
+    const batch = db.batch();
+
+    // Atualiza o saldo sacável do dono
+    batch.update(sellerRef, { current_amount: newSellerAmount });
+
+    // Atualiza o progresso do Link e adiciona o pagamento confirmado
+    const isClosed = newLinkAmount >= (currentLinkData?.targetValue || 0);
+
+    batch.update(linkRef, {
+      current_amount: newLinkAmount,
+      is_closed: isClosed,
+      paymentsConfirmed: [
+        ...(currentLinkData?.paymentsConfirmed || []),
+        {
+          name: paymentData.customerName,
+          cpfCnpj: paymentData.customerCpf,
+          created_at: new Date().toISOString(),
+          amount: pixInfo.valor, // No histórico do link, mostramos o valor cheio que o jogador pagou
+        },
+      ],
+    });
+
+    // Opcional: Atualizar o status do tracking para 'received'
+    batch.update(paymentSnapshot.docs[0].ref, { status: "received" });
+
+    await batch.commit();
+
+    console.log(
+      `✅ Pix processado! Dono: +R$${paymentData.netValue} | Link: +R$${pixInfo.valor}`
     );
 
-    await updatePaymentStatus({
-      trackingId: paymentByIdData?.trackingId || "",
-      status: "received",
-      additionalData: {
-        current_amount: pixInfo.valor,
-        paymentsConfirmed: [
-          {
-            name: paymentByIdData?.customerName,
-            cpfCnpj: paymentByIdData?.customerCpf,
-            created_at: new Date().toISOString(),
-            amount: paymentByIdData?.value,
-          },
-        ],
-      },
-    });
-    const sellerData = await db
-      .collection("users")
-      .where("id", "==", paymentByIdData?.sellerId)
-      .get();
-
-    if (sellerData.empty) {
-      console.log("❌ Usuário recebedor não encontrado.");
-      return reply
-        .status(404)
-        .send({ message: "Usuário recebedor não encontrado." });
-    }
-
-    const paymentsSnapshotFirestore = await db
-      .collection("paymentsLinks")
-      .where("id", "==", paymentByIdData?.paymentLinkId)
-      .get();
-
-    await db
-      .collection("users")
-      .doc(sellerData.docs[0].id)
-      .update({
-        current_amount:
-          Number(sellerData.docs[0].data().current_amount || 0) +
-          Number(pixInfo.valor),
-      });
-
-    await db
-      .collection("paymentsLinks")
-      .doc(paymentsSnapshotFirestore.docs[0].id)
-      .update({
-        ...paymentsSnapshotFirestore.docs[0].data(),
-        current_amount:
-          Number(paymentsSnapshotFirestore.docs[0].data().current_amount || 0) +
-          Number(pixInfo.valor),
-        paymentsConfirmed: [
-          ...(paymentsSnapshotFirestore.docs[0].data().paymentsConfirmed || []),
-          {
-            name: paymentByIdData?.customerName,
-            cpfCnpj: paymentByIdData?.customerCpf,
-            created_at: new Date().toISOString(),
-            amount: paymentByIdData?.value,
-          },
-        ],
-      });
-    if (pixInfo.status === "NAO_REALIZADO") {
-      console.log("❌ Transação não realizada!");
-      console.log("🔍 Detalhes do erro:", pixInfo.gnExtras);
-      console.log("📋 Tipo:", pixInfo.tipo);
-      console.log("💰 Valor:", pixInfo.valor);
-      console.log("🔑 Chave destinatário:", pixInfo.chave);
-      console.log("📝 Info pagador:", pixInfo.infoPagador);
-    }
-
-    return reply.status(200).send({ message: "Webhook received successfully" });
+    return reply
+      .status(200)
+      .send({ message: "Webhook processed successfully" });
   } catch (err) {
-    console.error("Ocorreu um erro ao processar o webhook:", err);
-    reply.status(500).send({ error: "Internal Server Error" });
+    console.error("❌ Erro no processamento do webhook:", err);
+    return reply.status(500).send({ error: "Internal Server Error" });
   }
 };

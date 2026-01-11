@@ -42,6 +42,7 @@ export const createUser = async (
       email,
       password: hashedPassword,
       taxModel: "absorve",
+      courts: [],
     });
 
     const userData = {
@@ -49,6 +50,7 @@ export const createUser = async (
       name,
       phone: phone ?? "",
       email,
+      courts: [],
     };
 
     const token = request.server.jwt.sign(

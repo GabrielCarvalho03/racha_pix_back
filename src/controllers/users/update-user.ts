@@ -6,14 +6,15 @@ export const updateUser = async (
   reply: FastifyReply
 ) => {
   const { userId } = request.params as { userId: string };
-  const { name, pixKey, taxModel } = request.body as {
+  const { name, pixKey, taxModel, courts } = request.body as {
     name?: string;
     pixKey?: string;
     taxModel?: "absorve" | "passed_value";
+    courts?: string[];
   };
 
   try {
-    if (!name && !pixKey && !taxModel) {
+    if (!name && !pixKey && !taxModel && (!courts || !courts.length)) {
       return reply
         .status(400)
         .send({ message: "Nenhum dado fornecido para atualização." });
